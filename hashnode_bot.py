@@ -19,7 +19,15 @@ def generate_article():
         "messages": [{"role": "user", "content": prompt}]
     }
     response = requests.post("https://openrouter.ai/api/v1/chat/completions", json=payload, headers=headers)
-    return response.json()["choices"][0]["message"]["content"]
+
+    print("Status code:", response.status_code)
+    print("Response text:", response.text)
+
+    data = response.json()
+    if "choices" not in data:
+        raise ValueError("La réponse de l'API OpenRouter ne contient pas 'choices'. Vérifie la clé API et le format.")
+
+    return data["choices"][0]["message"]["content"]
 
 def get_publication_id():
     query = """
