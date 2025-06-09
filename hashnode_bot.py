@@ -4,55 +4,63 @@ import requests
 from datetime import datetime
 
 # --- Récupération et vérification des clés d'API ---
-OPENROUTER_API_KEY = os.getenv("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")
-HASHNODE_API_KEY   = os.getenv("cccd8350-e12e-419f-b437-2d5b8f286e9f")
+HUGGINGFACE_API_KEY = os.getenv("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")
+HASHNODE_API_KEY     = os.getenv("cccd8350-e12e-419f-b437-2d5b8f286e9f")
 
-if not OPENROUTER_API_KEY:
-    print("❌ ERREUR : OPENROUTER_API_KEY n'est pas défini.")
+if not HUGGINGFACE_API_KEY:
+    print("❌ ERREUR : HUGGINGFACE_API_KEY n'est pas défini.")
     sys.exit(1)
 
 if not HASHNODE_API_KEY:
     print("❌ ERREUR : HASHNODE_API_KEY n'est pas défini.")
     sys.exit(1)
 
-# --- Test d'authentification OpenRouter ---
-def test_openrouter_auth():
+# --- Test d'authentification Hugging Face ---
+def test_hf_auth():
     resp = requests.get(
-        "https://openrouter.ai/api/v1/models",
-        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"}
+        "https://api-inference.huggingface.co/models/bigscience/bloomz",
+        headers={"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
     )
-    print("🔎 Auth test status:", resp.status_code)
-    print("🔎 Auth test response:", resp.text)
-    if resp.status_code != 200:
-        print("❌ Échec de l’authentification OpenRouter, vérifie ta clé.")
+    print("🔎 Auth test HF status:", resp.status_code)
+    if resp.status_code not in (200, 503):
+        print("❌ Échec de l’authentification HF, vérifie ta clé.")
         sys.exit(1)
 
-test_openrouter_auth()
+test_hf_auth()
 
-# --- Génération de l'article via OpenRouter.ai ---
+# --- Génération de l'article via HuggingFace Inference API ---
 def generate_article():
-    prompt = "Écris un article de blog (~500 mots) sur une tendance actuelle en intelligence artificielle."
+    prompt = (
+        "Rédige un article de blog (~500 mots) en français sur une tendance actuelle "
+        "en intelligence artificielle, avec un titre accrocheur et une conclusion."
+    )
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "mistralai/mistral-7b-instruct",
-        "messages": [{"role": "user", "content": prompt}]
+        "inputs": prompt,
+        "options": {"wait_for_model": True},
+        "parameters": {
+            "max_new_tokens": 500,
+            "temperature": 0.7
+        }
     }
+
     response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
+        "https://api-inference.huggingface.co/models/bigscience/bloomz",
+        headers=headers,
         json=payload,
-        headers=headers
+        timeout=120
     )
 
-    print("Status code:", response.status_code)
-    print("Response text:", response.text)
+    print("Status code HF:", response.status_code)
+    print("Response HF:", response.text)
 
     data = response.json()
-    if "choices" not in data:
-        raise ValueError("La réponse de l'API OpenRouter ne contient pas 'choices'.")
-    return data["choices"][0]["message"]["content"]
+    if not isinstance(data, list) or "generated_text" not in data[0]:
+        raise ValueError("La réponse HF ne contient pas 'generated_text'.")
+    return data[0]["generated_text"]
 
 # --- Récupération de l'ID de la publication Hashnode ---
 HASHNODE_API_URL = "https://gql.hashnode.com/"
@@ -83,10 +91,7 @@ def publish_article(content):
     mutation = """
     mutation CreateStory($input: CreateStoryInput!) {
       createStory(input: $input) {
-        post {
-          title
-          slug
-        }
+        post { title slug }
       }
     }
     """
