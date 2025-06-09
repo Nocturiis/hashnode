@@ -2,12 +2,16 @@ name: Daily Hashnode Bot
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # tous les jours à 8h UTC
+    - cron: '0 8 * * *'
   workflow_dispatch:
 
 jobs:
   post:
     runs-on: ubuntu-latest
+    env:
+      HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+      HASHNODE_API_KEY:   ${{ secrets.HASHNODE_API_KEY }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -20,11 +24,5 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Debug ENV
-        run: env
-
       - name: Run bot
         run: python hashnode_bot.py
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          HASHNODE_API_KEY:   ${{ secrets.HASHNODE_API_KEY }}
