@@ -20,8 +20,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Debug ENV
+        run: env
+
       - name: Run bot
         run: python hashnode_bot.py
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          HASHNODE_API_KEY: ${{ secrets.HASHNODE_API_KEY }}
+          HASHNODE_API_KEY:   ${{ secrets.HASHNODE_API_KEY }}
