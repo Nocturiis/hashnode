@@ -67,7 +67,7 @@ test_mistral_auth()
 # --- Génération de l'article via Mistral AI API ---
 def generate_article():
     # Prompt simplifié pour le diagnostic
-    article_prompt = "Rédige un très court article de blog (environ 100 mots) en français sur l'importance de l'IA, avec un titre simple et une courte conclusion. Pas de formatage complexe."
+    article_prompt = "Rédige un article de blog professionnel et détaillé d'au moins 1500 mots en français sur un sujet (d'actualité si possible) qui concerne l'informatique dans sa globalité. Signe par Nathan Remacle et optimise le SEO de l'article"
     
     headers = {
         "Authorization": f"Bearer {MISTRAL_API_KEY}",
@@ -82,7 +82,7 @@ def generate_article():
             }
         ],
         "temperature": 0.7,
-        "max_tokens": 150 # Réduit les tokens pour un article plus court
+        "max_tokens": 100000 # Réduit les tokens pour un article plus court
     }
 
     print(f"\n🚀 Tentative de génération d'article avec le modèle '{MISTRAL_MODEL_NAME}'...")
@@ -167,7 +167,7 @@ def get_publication_id():
 # --- Publication de l'article sur Hashnode ---
 def publish_article(content):
     publication_id = get_publication_id()
-    title = "Article IA - " + datetime.now().strftime("%d %B %Y - %H:%M")
+    title = "Article du" + datetime.now().strftime("%d %B %Y - %H:%M")
 
     mutation = """
     mutation PublishPost($input: PublishPostInput!) {
