@@ -5,10 +5,7 @@ from datetime import datetime
 import json
 
 # --- Récupération et vérification des clés d'API ---
-# HUGGINGFACE_API_KEY n'est plus nécessaire pour la génération de texte,
-# mais si vous la gardez pour d'autres usages, pas de souci.
-# Je la remplace par MISTRAL_API_KEY pour la génération.
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY") # Nouvelle clé pour Mistral AI
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 HASHNODE_API_KEY = os.getenv("HASHNODE_API_KEY")
 
 if not MISTRAL_API_KEY:
@@ -20,8 +17,8 @@ if not HASHNODE_API_KEY:
     sys.exit(1)
 
 # --- Définit le modèle Mistral AI à utiliser et l'URL de l'API ---
-MISTRAL_MODEL_NAME = "mistral-tiny" # Ou "mistral-small" si vous voulez un peu plus de qualité (et un peu plus de coûts)
-MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1/chat/completions" # Endpoint pour les chat completions de Mistral
+MISTRAL_MODEL_NAME = "mistral-tiny"
+MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1/chat/completions"
 
 # --- Test d'authentification Mistral AI ---
 def test_mistral_auth():
@@ -69,12 +66,8 @@ test_mistral_auth()
 
 # --- Génération de l'article via Mistral AI API ---
 def generate_article():
-    # Prompt pour l'article de blog
-    # Mistral-tiny est plus concis, 750 tokens est un bon objectif pour cet article
-    article_prompt = (
-        "Rédige un article de blog (~750 mots) en français sur une tendance actuelle "
-        "en intelligence artificielle, avec un titre accrocheur et une conclusion."
-    )
+    # Prompt simplifié pour le diagnostic
+    article_prompt = "Rédige un très court article de blog (environ 100 mots) en français sur l'importance de l'IA, avec un titre simple et une courte conclusion. Pas de formatage complexe."
     
     headers = {
         "Authorization": f"Bearer {MISTRAL_API_KEY}",
@@ -89,7 +82,7 @@ def generate_article():
             }
         ],
         "temperature": 0.7,
-        "max_tokens": 750 # Mistral utilise max_tokens au lieu de max_new_tokens
+        "max_tokens": 150 # Réduit les tokens pour un article plus court
     }
 
     print(f"\n🚀 Tentative de génération d'article avec le modèle '{MISTRAL_MODEL_NAME}'...")
@@ -98,7 +91,7 @@ def generate_article():
             MISTRAL_API_BASE_URL,
             headers=headers,
             json=payload,
-            timeout=120 # Timeout de 2 minutes, généralement suffisant pour Mistral Tiny
+            timeout=120
         )
         response.raise_for_status()
 
@@ -107,7 +100,6 @@ def generate_article():
 
         data = response.json()
         
-        # Extraction du texte généré selon le format de réponse de l'API chat completions (Mistral)
         if 'choices' in data and data['choices'] and 'message' in data['choices'][0] and 'content' in data['choices'][0]['message']:
             article_content = data['choices'][0]['message']['content'].strip()
             print("DEBUG: Réponse traitée comme Chat Completions API de Mistral AI.")
@@ -132,9 +124,7 @@ def get_publication_id():
         publications(first: 1) {
           edges {
             node {
-              id # <<<<<< MODIFIÉ ICI : _id changé en id
-              # handle # Vous pouvez le décommenter pour voir le handle si besoin
-              # title # Vous pouvez le décommenter pour voir le titre si besoin
+              id
             }
           }
         }
@@ -155,7 +145,6 @@ def get_publication_id():
             print(f"❌ ERREUR GraphQL de Hashnode lors de la récupération de l'ID de publication : {data['errors']}")
             sys.exit(1)
 
-        # Accédez à la première publication via edges et node
         if not data.get('data') or \
            not data['data'].get('me') or \
            not data['data']['me'].get('publications') or \
@@ -163,7 +152,6 @@ def get_publication_id():
            not data['data']['me']['publications']['edges']:
             raise KeyError("Aucune publication trouvée ou chemin inattendu dans la réponse Hashnode. Vérifiez votre compte ou le schéma de l'API.")
             
-        # MODIFIÉ ICI : _id changé en id
         publication_id = data['data']['me']['publications']['edges'][0]['node']['id']
         print(f"✅ ID de publication Hashnode récupéré : {publication_id}")
         return publication_id
@@ -181,15 +169,14 @@ def publish_article(content):
     publication_id = get_publication_id()
     title = "Article IA - " + datetime.now().strftime("%d %B %Y - %H:%M")
 
-    # MODIFIÉ ICI : Utiliser 'CreateDraftInput' et 'createDraft'
     mutation = """
-    mutation CreateDraft($input: CreateDraftInput!) { # <<<< MODIFIÉ
-      createDraft(input: $input) { # <<<< MODIFIÉ
+    mutation PublishPost($input: PublishPostInput!) {
+      publishPost(input: $input) {
         post {
-          id # Assurez-vous que c'est 'id' et non '_id' ici aussi
+          id
           title
           slug
-          url # Ajouter l'URL pour un message de succès plus informatif
+          url
         }
       }
     }
@@ -199,14 +186,8 @@ def publish_article(content):
             "title": title,
             "contentMarkdown": content,
             "publicationId": publication_id,
-            "tags": [ # <<<< MODIFIÉ ICI : Correction de la syntaxe
-                {
-                    "_id": "64d3ac20b4110f0001e6aa5b",
-                    "name": "Artificial Intelligence"
-                }
-            ],
+            "tags": [], # <<<< MODIFIÉ ICI : Tags retirés pour le diagnostic
             "coverImageOptions": {"enabled": False},
-            "isPublished": True # <<<< Ajouté pour publier directement
         }
     }
 
@@ -216,19 +197,22 @@ def publish_article(content):
     }
 
     print(f"\n✍️ Tentative de publication de l'article '{title}' sur Hashnode...")
+    print(f"DEBUG: Payload JSON envoyé à Hashnode (sans le contenu détaillé): {json.dumps(variables, indent=2)}")
+    # Pour ne pas polluer les logs avec l'article complet, on peut montrer une partie du contenu
+    print(f"DEBUG: Début du contenu Markdown envoyé: {content[:200]}...") # Affiche les 200 premiers caractères
+
     try:
         resp = requests.post(HASHNODE_API_URL, json={"query": mutation, "variables": variables}, headers=headers)
         resp.raise_for_status()
         print("Publish status:", resp.status_code)
         print("Publish response:", resp.text)
         
-        # Parse la réponse pour afficher l'URL du post si possible
         post_url = None
         if 'data' in resp.json() and \
-           'createDraft' in resp.json()['data'] and \
-           'post' in resp.json()['data']['createDraft'] and \
-           'url' in resp.json()['data']['createDraft']['post']:
-            post_url = resp.json()['data']['createDraft']['post']['url']
+           'publishPost' in resp.json()['data'] and \
+           'post' in resp.json()['data']['publishPost'] and \
+           'url' in resp.json()['data']['publishPost']['post']:
+            post_url = resp.json()['data']['publishPost']['post']['url']
             print(f"✅ Article publié avec succès : {title} à l'URL : {post_url}")
         else:
             print(f"✅ Article publié avec succès (URL non récupérée) : {title}")
@@ -239,4 +223,15 @@ def publish_article(content):
         sys.exit(1)
     except Exception as e:
         print(f"❌ Une erreur inattendue est survenue lors de la publication : {e}")
+        sys.exit(1)
+
+# --- Exécution principale ---
+if __name__ == "__main__":
+    print("Démarrage du bot Hashnode.")
+    try:
+        article = generate_article()
+        publish_article(article)
+        print("\n🎉 Bot Hashnode terminé avec succès !")
+    except Exception as e:
+        print(f"\nFATAL ERROR: Une erreur critique est survenue : {e}")
         sys.exit(1)
