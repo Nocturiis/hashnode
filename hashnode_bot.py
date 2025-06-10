@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 
 # --- Récupération et vérification des clés d'API ---
-HUGGINGFACE_API_KEY = os.getenv("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")
+HUGGINGFACE_API_KEY = os.getenv("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")
 HASHNODE_API_KEY     = os.getenv("cccd8350-e12e-419f-b437-2d5b8f286e9f")
 
 if not HUGGINGFACE_API_KEY:
