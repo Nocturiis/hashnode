@@ -24,10 +24,10 @@ MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1/chat/completions"
 # --- Configuration Hashnode ---
 HASHNODE_API_URL = "https://gql.hashnode.com/"
 
-# --- MODIFIÉ ICI : Variables pour l'URL de base du dépôt GitHub ---
-# Ces variables sont automatiquement fournies par GitHub Actions
+# --- Variables pour l'URL de base du dépôt GitHub ---
 GITHUB_REPOSITORY = os.getenv('GITHUB_REPOSITORY') # Format: 'user/repo'
 GITHUB_REF = os.getenv('GITHUB_REF') # Format: 'refs/heads/main' ou 'refs/heads/master'
+
 # Extraire le nom d'utilisateur et le nom du dépôt
 if GITHUB_REPOSITORY:
     GITHUB_USERNAME = GITHUB_REPOSITORY.split('/')[0]
@@ -249,7 +249,7 @@ def publish_article(content):
     else:
         extracted_title = "Article du " + datetime.now().strftime("%d %B %Y - %H:%M")
 
-    # --- MODIFIÉ ICI : Appel de la nouvelle fonction pour obtenir l'URL de l'image ---
+    # Appel de la fonction pour obtenir l'URL de l'image de couverture
     selected_cover_url = get_random_cover_image_url()
 
     # Assurez-vous que la signature est présente
@@ -282,7 +282,8 @@ def publish_article(content):
     if selected_cover_url:
         variables["input"]["coverImageOptions"] = {
             "coverImageURL": selected_cover_url,
-            "isCoverImageAttributionRequired": False # Mettez True si vous ajoutez une attribution manuelle
+            # MODIFIÉ ICI : Utilisation de "isCoverAttributionHidden" comme suggéré par Hashnode
+            "isCoverAttributionHidden": True # Définit à True pour masquer l'attribution par défaut
         }
         print(f"DEBUG: Image de couverture Hashnode ajoutée aux variables: {selected_cover_url}")
     else:
@@ -302,7 +303,7 @@ def publish_article(content):
         resp = requests.post(HASHNODE_API_URL, json={"query": mutation, "variables": variables}, headers=headers)
         
         print("Publish status:", resp.status_code)
-        print("Publish response:", resp.text)
+        print("Publish response:", resp.text) # Ceci va afficher la nouvelle erreur si elle existe
         
         response_data = resp.json()
 
