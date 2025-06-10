@@ -125,20 +125,14 @@ def generate_article():
 # --- Récupération de l'ID de la publication Hashnode ---
 HASHNODE_API_URL = "https://gql.hashnode.com/"
 
-# --- Récupération de l'ID de la publication Hashnode ---
-HASHNODE_API_URL = "https://gql.hashnode.com/"
-
-# --- Récupération de l'ID de la publication Hashnode ---
-HASHNODE_API_URL = "https://gql.hashnode.com/"
-
 def get_publication_id():
     query = """
     query {
       me {
-        publications(first: 1) { # <<<<<< MODIFIÉ ICI : Ajout de l'argument 'first: 1'
-          edges { # <<<<<< MODIFIÉ ICI : Ajout de 'edges'
-            node { # <<<<<< MODIFIÉ ICI : Ajout de 'node'
-              _id
+        publications(first: 1) {
+          edges {
+            node {
+              id # <<<<<< MODIFIÉ ICI : _id changé en id
               # handle # Vous pouvez le décommenter pour voir le handle si besoin
               # title # Vous pouvez le décommenter pour voir le titre si besoin
             }
@@ -162,7 +156,6 @@ def get_publication_id():
             sys.exit(1)
 
         # Accédez à la première publication via edges et node
-        # Vérification robuste pour s'assurer que le chemin existe
         if not data.get('data') or \
            not data['data'].get('me') or \
            not data['data']['me'].get('publications') or \
@@ -170,7 +163,8 @@ def get_publication_id():
            not data['data']['me']['publications']['edges']:
             raise KeyError("Aucune publication trouvée ou chemin inattendu dans la réponse Hashnode. Vérifiez votre compte ou le schéma de l'API.")
             
-        publication_id = data['data']['me']['publications']['edges'][0]['node']['_id']
+        # MODIFIÉ ICI : _id changé en id
+        publication_id = data['data']['me']['publications']['edges'][0]['node']['id']
         print(f"✅ ID de publication Hashnode récupéré : {publication_id}")
         return publication_id
     except requests.exceptions.RequestException as e:
@@ -181,7 +175,6 @@ def get_publication_id():
     except KeyError as e:
         print(f"❌ ERREUR : Impossible de trouver l'ID de publication dans la réponse Hashnode. Détails: {e}, Réponse: {resp.text if 'resp' in locals() else 'Pas de réponse.'}")
         sys.exit(1)
-
 
 # --- Publication de l'article sur Hashnode ---
 def publish_article(content):
