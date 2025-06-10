@@ -125,12 +125,19 @@ def generate_article():
 # --- Récupération de l'ID de la publication Hashnode ---
 HASHNODE_API_URL = "https://gql.hashnode.com/"
 
+# --- Récupération de l'ID de la publication Hashnode ---
+HASHNODE_API_URL = "https://gql.hashnode.com/"
+
 def get_publication_id():
     query = """
     query {
       me {
-        publication {
+        # MODIFIÉ ICI : Utilisez 'publications' au lieu de 'publication'
+        publications {
           _id
+          # Vous pouvez ajouter 'handle' ou 'title' ici pour vérifier
+          # si vous avez plusieurs publications et trouver la bonne
+          # handle
         }
       }
     }
@@ -149,7 +156,13 @@ def get_publication_id():
             print(f"❌ ERREUR GraphQL de Hashnode lors de la récupération de l'ID de publication : {data['errors']}")
             sys.exit(1)
 
-        publication_id = data['data']['me']['publication']['_id']
+        # MODIFIÉ ICI : Accédez à la première publication de la liste
+        if not data['data']['me'] or not data['data']['me']['publications']:
+            raise KeyError("Aucune publication trouvée pour l'utilisateur. Vérifiez votre compte Hashnode.")
+            
+        # On prend la première publication de la liste. Si vous avez plusieurs blogs,
+        # vous devrez peut-être ajouter une logique pour choisir le bon ID.
+        publication_id = data['data']['me']['publications'][0]['_id']
         print(f"✅ ID de publication Hashnode récupéré : {publication_id}")
         return publication_id
     except requests.exceptions.RequestException as e:
