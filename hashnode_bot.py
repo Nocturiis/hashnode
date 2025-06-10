@@ -2,7 +2,7 @@ import os
 import sys
 import requests
 from datetime import datetime
-import json # Assurons-nous que json est importé
+import json
 
 # --- Récupération et vérification des clés d'API ---
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
@@ -74,7 +74,7 @@ test_hf_auth()
 def generate_article():
     # Le prompt pour l'article de blog
     article_prompt = (
-        "Rédige un article de blog (~500 mots) en français sur une tendance actuelle "
+        "Rédige un article de blog (~1500 mots) en français sur une tendance actuelle "
         "en intelligence artificielle, avec un titre accrocheur et une conclusion."
     )
     
@@ -88,10 +88,8 @@ def generate_article():
         ],
         "model": HF_MODEL_NAME, # Important de spécifier le modèle ici
         "parameters": {
-            "max_new_tokens": 500,
+            "max_new_tokens": 1500, # <<<<< MODIFIÉ ICI POUR UN ARTICLE PLUS LONG
             "temperature": 0.7
-            # "return_full_text": False n'est généralement pas nécessaire pour l'API chat completions
-            # car elle sépare naturellement le prompt de la réponse.
         }
     }
 
@@ -145,21 +143,30 @@ def get_publication_id():
     """
     headers = {
         "Content-Type": "application/json",
-        "Authorization": HASHNODE_API_KEY
+        "Authorization": f"Bearer {HASHNODE_API_KEY}" # <<<<< MODIFIÉ ICI POUR L'AUTORISATION BEARER
     }
     print("\n🔎 Récupération de l'ID de publication Hashnode...")
     try:
         resp = requests.post(HASHNODE_API_URL, json={"query": query}, headers=headers)
-        resp.raise_for_status()
+        resp.raise_for_status() # Lève une exception pour les codes d'erreur HTTP (y compris 400)
         data = resp.json()
+        
+        # Vérifiez si des erreurs GraphQL sont retournées par Hashnode
+        if 'errors' in data:
+            print(f"❌ ERREUR GraphQL de Hashnode lors de la récupération de l'ID de publication : {data['errors']}")
+            sys.exit(1)
+
         publication_id = data['data']['me']['publication']['_id']
         print(f"✅ ID de publication Hashnode récupéré : {publication_id}")
         return publication_id
     except requests.exceptions.RequestException as e:
         print(f"❌ ERREUR HTTP lors de la récupération de l'ID de publication Hashnode : {e}")
+        # Affiche la réponse complète du serveur pour un meilleur diagnostic
+        if 'resp' in locals() and resp is not None:
+            print(f"Réponse Hashnode en cas d'erreur HTTP : {resp.text}")
         sys.exit(1)
     except KeyError as e:
-        print(f"❌ ERREUR : Impossible de trouver l'ID de publication dans la réponse Hashnode. Vérifiez votre clé ou les permissions. Détails: {e}, Réponse: {resp.text}")
+        print(f"❌ ERREUR : Impossible de trouver l'ID de publication dans la réponse Hashnode. Vérifiez votre clé ou les permissions. Détails: {e}, Réponse: {resp.text if 'resp' in locals() else 'Pas de réponse.'}")
         sys.exit(1)
 
 
@@ -188,7 +195,7 @@ def publish_article(content):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": HASHNODE_API_KEY
+        "Authorization": f"Bearer {HASHNODE_API_KEY}" # <<<<< MODIFIÉ ICI POUR L'AUTORISATION BEARER
     }
 
     print(f"\n✍️ Tentative de publication de l'article '{title}' sur Hashnode...")
