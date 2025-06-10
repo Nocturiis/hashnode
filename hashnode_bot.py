@@ -167,7 +167,7 @@ def get_publication_id():
 # --- Publication de l'article sur Hashnode ---
 def publish_article(content):
     publication_id = get_publication_id()
-    title = "Article du" + datetime.now().strftime("%d %B %Y - %H:%M")
+    title = "Article du " + datetime.now().strftime("%d %B %Y - %H:%M")
 
     mutation = """
     mutation PublishPost($input: PublishPostInput!) {
