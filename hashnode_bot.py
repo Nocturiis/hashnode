@@ -128,16 +128,21 @@ HASHNODE_API_URL = "https://gql.hashnode.com/"
 # --- Récupération de l'ID de la publication Hashnode ---
 HASHNODE_API_URL = "https://gql.hashnode.com/"
 
+# --- Récupération de l'ID de la publication Hashnode ---
+HASHNODE_API_URL = "https://gql.hashnode.com/"
+
 def get_publication_id():
     query = """
     query {
       me {
-        # MODIFIÉ ICI : Utilisez 'publications' au lieu de 'publication'
-        publications {
-          _id
-          # Vous pouvez ajouter 'handle' ou 'title' ici pour vérifier
-          # si vous avez plusieurs publications et trouver la bonne
-          # handle
+        publications(first: 1) { # <<<<<< MODIFIÉ ICI : Ajout de l'argument 'first: 1'
+          edges { # <<<<<< MODIFIÉ ICI : Ajout de 'edges'
+            node { # <<<<<< MODIFIÉ ICI : Ajout de 'node'
+              _id
+              # handle # Vous pouvez le décommenter pour voir le handle si besoin
+              # title # Vous pouvez le décommenter pour voir le titre si besoin
+            }
+          }
         }
       }
     }
@@ -156,13 +161,16 @@ def get_publication_id():
             print(f"❌ ERREUR GraphQL de Hashnode lors de la récupération de l'ID de publication : {data['errors']}")
             sys.exit(1)
 
-        # MODIFIÉ ICI : Accédez à la première publication de la liste
-        if not data['data']['me'] or not data['data']['me']['publications']:
-            raise KeyError("Aucune publication trouvée pour l'utilisateur. Vérifiez votre compte Hashnode.")
+        # Accédez à la première publication via edges et node
+        # Vérification robuste pour s'assurer que le chemin existe
+        if not data.get('data') or \
+           not data['data'].get('me') or \
+           not data['data']['me'].get('publications') or \
+           not data['data']['me']['publications'].get('edges') or \
+           not data['data']['me']['publications']['edges']:
+            raise KeyError("Aucune publication trouvée ou chemin inattendu dans la réponse Hashnode. Vérifiez votre compte ou le schéma de l'API.")
             
-        # On prend la première publication de la liste. Si vous avez plusieurs blogs,
-        # vous devrez peut-être ajouter une logique pour choisir le bon ID.
-        publication_id = data['data']['me']['publications'][0]['_id']
+        publication_id = data['data']['me']['publications']['edges'][0]['node']['_id']
         print(f"✅ ID de publication Hashnode récupéré : {publication_id}")
         return publication_id
     except requests.exceptions.RequestException as e:
@@ -171,7 +179,7 @@ def get_publication_id():
             print(f"Réponse Hashnode en cas d'erreur HTTP : {resp.text}")
         sys.exit(1)
     except KeyError as e:
-        print(f"❌ ERREUR : Impossible de trouver l'ID de publication dans la réponse Hashnode. Vérifiez votre clé ou les permissions. Détails: {e}, Réponse: {resp.text if 'resp' in locals() else 'Pas de réponse.'}")
+        print(f"❌ ERREUR : Impossible de trouver l'ID de publication dans la réponse Hashnode. Détails: {e}, Réponse: {resp.text if 'resp' in locals() else 'Pas de réponse.'}")
         sys.exit(1)
 
 
