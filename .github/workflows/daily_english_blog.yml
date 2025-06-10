@@ -1,0 +1,28 @@
+name: Generate and Publish English Blog Post Daily
+
+on:
+  workflow_dispatch: # Permet de déclencher manuellement le workflow
+  schedule:
+    - cron: '0 1 * * *' # Exécute le workflow tous les jours à 1h du matin UTC (décalé pour ne pas être exactement en même temps que le français)
+
+jobs:
+  publish-english-blog:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run English Hashnode Bot
+      env:
+        MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+        HASHNODE_API_KEY: ${{ secrets.HASHNODE_API_KEY }}
+      run: python english_hashnode_bot.py # Exécute le bot anglais
