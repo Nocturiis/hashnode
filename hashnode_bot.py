@@ -17,41 +17,32 @@ if not HASHNODE_API_KEY:
     sys.exit(1)
 
 # --- Définit le modèle HF à utiliser et l'URL de l'API ---
-HF_MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
-# L'URL exacte pour l'API de chat completions pour ce modèle, comme fourni par Hugging Face
-HF_API_INFERENCE_URL = "https://router.huggingface.co/hf-inference/models/HuggingFaceH4/zephyr-7b-beta/v1/chat/completions"
+# Changement du modèle vers un modèle de génération de texte plus petit et plus fiable.
+HF_MODEL_NAME = "distilbert/distilgpt2"
+HF_API_INFERENCE_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL_NAME}"
 
 
 # --- Test d'authentification Hugging Face ---
 def test_hf_auth():
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    # Requête de test au format chat completions
-    payload = {
-        "messages": [
-            {
-                "role": "user",
-                "content": "Bonjour."
-            }
-        ],
-        "model": HF_MODEL_NAME # Important de spécifier le modèle même dans le payload
-    }
+    # Requête de test simple pour un modèle de génération de texte
+    payload = {"inputs": "Bonjour"}
 
     print(f"🔎 Test d'authentification HF avec modèle '{HF_MODEL_NAME}' à l'URL: {HF_API_INFERENCE_URL}")
     try:
-        resp = requests.post(HF_API_INFERENCE_URL, headers=headers, json=payload, timeout=60)
+        resp = requests.post(HF_API_INFERENCE_URL, headers=headers, json=payload, timeout=30) # Timeout plus court car plus rapide
         print(f"Auth test HF status: {resp.status_code}")
         print(f"Auth test HF response: {resp.text}")
 
         # Les codes 200 (OK) ou 503 (Service Indisponible - chargement du modèle) sont acceptables
         if resp.status_code == 200 or resp.status_code == 503:
             print("✅ Authentification Hugging Face réussie et modèle accessible (ou en cours de chargement).")
-            # Un test supplémentaire : vérifier que la réponse est un JSON valide
             try:
                 response_data = resp.json()
-                if "choices" in response_data and response_data["choices"]:
-                    print("✅ Réponse du modèle au format attendu (contient 'choices').")
+                if isinstance(response_data, list) and response_data and "generated_text" in response_data[0]:
+                    print("✅ Réponse du modèle au format attendu (contient 'generated_text').")
                 else:
-                    print("⚠️ Réponse du modèle valide mais ne contient pas 'choices' dans le format attendu.")
+                    print("⚠️ Réponse du modèle valide mais ne contient pas 'generated_text' dans le format attendu.")
             except json.JSONDecodeError:
                 print("⚠️ Réponse du modèle non JSON valide. Cela pourrait être un problème de serveur.")
         elif resp.status_code == 401:
@@ -59,7 +50,7 @@ def test_hf_auth():
             sys.exit(1)
         elif resp.status_code == 404:
             print(f"❌ Échec de l’authentification HF: 404 Not Found. Le modèle '{HF_MODEL_NAME}' n'est pas déployé publiquement ou l'URL est incorrecte.")
-            print("Vérifiez la disponibilité de ce modèle sur l'API d'inférence gratuite ou si un plan payant est nécessaire.")
+            print("Vérifiez la disponibilité de ce modèle sur l'API d'inférence gratuite.")
             sys.exit(1)
         else:
             print(f"❌ Échec de l’authentification HF. Statut inattendu: {resp.status_code}, Réponse: {resp.text}")
@@ -72,54 +63,51 @@ test_hf_auth()
 
 # --- Génération de l'article via HuggingFace Inference API ---
 def generate_article():
-    # Le prompt pour l'article de blog
-    article_prompt = (
-        "Rédige un article de blog (~1500 mots) en français sur une tendance actuelle "
+    # Prompt pour l'article de blog
+    prompt = (
+        "Rédige un article de blog (~750 mots) en français sur une tendance actuelle "
         "en intelligence artificielle, avec un titre accrocheur et une conclusion."
     )
     
-    # Payload au format chat completions
-    payload = {
-        "messages": [
-            {
-                "role": "user",
-                "content": article_prompt
-            }
-        ],
-        "model": HF_MODEL_NAME, # Important de spécifier le modèle ici
-        "parameters": {
-            "max_new_tokens": 1500, # <<<<< MODIFIÉ ICI POUR UN ARTICLE PLUS LONG
-            "temperature": 0.7
-        }
-    }
-
     headers = {
         "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
         "Content-Type": "application/json"
+    }
+    payload = {
+        "inputs": prompt,
+        "options": {"wait_for_model": True},
+        "parameters": {
+            "max_new_tokens": 750, # Gardons 750 tokens pour un bon équilibre qualité/fiabilité
+            "temperature": 0.7
+        }
     }
 
     print(f"\n🚀 Tentative de génération d'article avec le modèle '{HF_MODEL_NAME}'...")
     try:
         response = requests.post(
-            HF_API_INFERENCE_URL, # Utilise l'URL spécifique pour chat completions
+            HF_API_INFERENCE_URL,
             headers=headers,
             json=payload,
-            timeout=300 # Laisser un timeout généreux
+            timeout=300 # Retour à un timeout plus court, car ce modèle est plus rapide
         )
-        response.raise_for_status() # Lève une exception pour les codes d'erreur HTTP
+        response.raise_for_status()
 
         print("Status code HF:", response.status_code)
         print("Response HF:", response.text)
 
         data = response.json()
         
-        # Extraction du texte généré selon le format de réponse de l'API chat completions
-        if 'choices' in data and data['choices'] and 'message' in data['choices'][0] and 'content' in data['choices'][0]['message']:
-            article_content = data['choices'][0]['message']['content'].strip()
-            print("DEBUG: Réponse traitée comme Chat Completions API.")
-        else:
-            raise ValueError(f"La réponse HF ne contient pas le format de chat completions attendu. Réponse complète: {data}")
+        # Le format de réponse pour distilgpt2 est une liste de dictionnaires avec 'generated_text'
+        if not isinstance(data, list) or not data or "generated_text" not in data[0]:
+            raise ValueError(f"La réponse HF ne contient pas 'generated_text'. Réponse complète: {data}")
         
+        generated_full_text = data[0]["generated_text"]
+        # Distilgpt2 renvoie le prompt inclus, nous devons le retirer
+        if generated_full_text.startswith(prompt):
+            article_content = generated_full_text[len(prompt):].strip()
+        else:
+            article_content = generated_full_text # Au cas où, on prend tout
+            
         return article_content
     except requests.exceptions.RequestException as e:
         print(f"❌ ERREUR HTTP lors de la génération de l'article : {e}")
@@ -143,15 +131,14 @@ def get_publication_id():
     """
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {HASHNODE_API_KEY}" # <<<<< MODIFIÉ ICI POUR L'AUTORISATION BEARER
+        "Authorization": f"Bearer {HASHNODE_API_KEY}"
     }
     print("\n🔎 Récupération de l'ID de publication Hashnode...")
     try:
         resp = requests.post(HASHNODE_API_URL, json={"query": query}, headers=headers)
-        resp.raise_for_status() # Lève une exception pour les codes d'erreur HTTP (y compris 400)
+        resp.raise_for_status()
         data = resp.json()
         
-        # Vérifiez si des erreurs GraphQL sont retournées par Hashnode
         if 'errors' in data:
             print(f"❌ ERREUR GraphQL de Hashnode lors de la récupération de l'ID de publication : {data['errors']}")
             sys.exit(1)
@@ -161,7 +148,6 @@ def get_publication_id():
         return publication_id
     except requests.exceptions.RequestException as e:
         print(f"❌ ERREUR HTTP lors de la récupération de l'ID de publication Hashnode : {e}")
-        # Affiche la réponse complète du serveur pour un meilleur diagnostic
         if 'resp' in locals() and resp is not None:
             print(f"Réponse Hashnode en cas d'erreur HTTP : {resp.text}")
         sys.exit(1)
@@ -173,7 +159,7 @@ def get_publication_id():
 # --- Publication de l'article sur Hashnode ---
 def publish_article(content):
     publication_id = get_publication_id()
-    title = "Article IA - " + datetime.now().strftime("%d %B %Y - %H:%M") # Ajout de l'heure pour l'unicité
+    title = "Article IA - " + datetime.now().strftime("%d %B %Y - %H:%M")
 
     mutation = """
     mutation CreateStory($input: CreateStoryInput!) {
@@ -195,7 +181,7 @@ def publish_article(content):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {HASHNODE_API_KEY}" # <<<<< MODIFIÉ ICI POUR L'AUTORISATION BEARER
+        "Authorization": f"Bearer {HASHNODE_API_KEY}"
     }
 
     print(f"\n✍️ Tentative de publication de l'article '{title}' sur Hashnode...")
