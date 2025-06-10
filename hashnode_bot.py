@@ -3,6 +3,7 @@ import sys
 import requests
 from datetime import datetime
 import json
+import random
 
 # --- Récupération et vérification des clés d'API ---
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
@@ -17,8 +18,76 @@ if not HASHNODE_API_KEY:
     sys.exit(1)
 
 # --- Définit le modèle Mistral AI à utiliser et l'URL de l'API ---
-MISTRAL_MODEL_NAME = "mistral-tiny" # Gardons tiny pour les tests, mais envisagez 'mistral-medium' ou 'mistral-large' pour la qualité
+MISTRAL_MODEL_NAME = "mistral-tiny"
 MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1/chat/completions"
+
+# --- Configuration Hashnode ---
+HASHNODE_API_URL = "https://gql.hashnode.com/"
+
+# --- MODIFIÉ ICI : Variables pour l'URL de base du dépôt GitHub ---
+# Ces variables sont automatiquement fournies par GitHub Actions
+GITHUB_REPOSITORY = os.getenv('GITHUB_REPOSITORY') # Format: 'user/repo'
+GITHUB_REF = os.getenv('GITHUB_REF') # Format: 'refs/heads/main' ou 'refs/heads/master'
+# Extraire le nom d'utilisateur et le nom du dépôt
+if GITHUB_REPOSITORY:
+    GITHUB_USERNAME = GITHUB_REPOSITORY.split('/')[0]
+    GITHUB_REPO_NAME = GITHUB_REPOSITORY.split('/')[1]
+else:
+    GITHUB_USERNAME = "votre_utilisateur" # Fallback si pas en environnement GH Actions
+    GITHUB_REPO_NAME = "votre_repo"      # Fallback
+    print("⚠️ Variables GITHUB_REPOSITORY non trouvées. Utilisation de valeurs par défaut. Assurez-vous que le script s'exécute dans un environnement GitHub Actions.")
+
+# Extraire le nom de la branche
+if GITHUB_REF and GITHUB_REF.startswith('refs/heads/'):
+    GITHUB_BRANCH = GITHUB_REF.split('/')[-1]
+else:
+    GITHUB_BRANCH = "main" # Fallback, généralement 'main' ou 'master'
+
+# Le dossier où se trouvent vos images de couverture dans le dépôt
+COVER_IMAGES_DIR = "covers" # Assurez-vous que c'est le bon chemin !
+
+# --- Fonctions Utilitaires ---
+
+def get_github_raw_base_url():
+    """Construit l'URL de base pour les fichiers bruts de votre dépôt GitHub."""
+    return f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REPO_NAME}/{GITHUB_BRANCH}"
+
+def get_random_cover_image_url():
+    """
+    Liste les images dans le répertoire spécifié et retourne l'URL raw d'une image aléatoire.
+    """
+    image_files = []
+    # Chemin absolu vers le dossier covers dans l'environnement d'exécution de l'action
+    # GITHUB_WORKSPACE est le chemin par défaut du dépôt cloné par GitHub Actions
+    covers_path = os.path.join(os.getenv('GITHUB_WORKSPACE', '.'), COVER_IMAGES_DIR)
+
+    if not os.path.exists(covers_path):
+        print(f"❌ ERREUR : Le dossier des images de couverture '{covers_path}' n'existe pas. Veuillez le créer ou vérifier le chemin.")
+        return None
+
+    try:
+        # Lister tous les fichiers dans le dossier covers
+        for filename in os.listdir(covers_path):
+            # Vérifier si c'est un fichier image (extensions courantes)
+            if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                image_files.append(filename)
+        
+        if not image_files:
+            print(f"⚠️ Aucun fichier image trouvé dans le dossier '{covers_path}'.")
+            return None
+        
+        # Sélectionner un fichier aléatoirement
+        selected_file = random.choice(image_files)
+        
+        # Construire l'URL raw complète
+        base_url = get_github_raw_base_url()
+        full_image_url = f"{base_url}/{COVER_IMAGES_DIR}/{selected_file}"
+        print(f"✅ Image de couverture sélectionnée : {selected_file}")
+        return full_image_url
+
+    except Exception as e:
+        print(f"❌ ERREUR lors de la lecture des fichiers d'images de couverture : {e}")
+        return None
 
 # --- Test d'authentification Mistral AI ---
 def test_mistral_auth():
@@ -40,8 +109,6 @@ def test_mistral_auth():
     try:
         resp = requests.post(MISTRAL_API_BASE_URL, headers=headers, json=payload, timeout=30)
         print(f"Auth test Mistral status: {resp.status_code}")
-        # print(f"Auth test Mistral response: {resp.text}") # Commenté pour éviter l'encombrement des logs
-
         if resp.status_code == 200:
             print("✅ Authentification Mistral AI réussie et modèle accessible.")
             try:
@@ -66,7 +133,6 @@ test_mistral_auth()
 
 # --- Génération de l'article via Mistral AI API ---
 def generate_article():
-    # --- MODIFIÉ ICI : Prompt amélioré et gestion du titre/signature ---
     article_prompt = (
         "Rédige un article de blog professionnel et détaillé d'au moins 1500 mots en français sur un sujet (d'actualité si possible) "
         "qui concerne l'informatique dans sa globalité. "
@@ -82,7 +148,7 @@ def generate_article():
         "Content-Type": "application/json"
     }
     payload = {
-        "model": MISTRAL_MODEL_NAME, # Considérez 'mistral-medium' ou 'mistral-large' pour de meilleurs résultats
+        "model": MISTRAL_MODEL_NAME,
         "messages": [
             {
                 "role": "user",
@@ -90,8 +156,7 @@ def generate_article():
             }
         ],
         "temperature": 0.7,
-        "max_tokens": 10000 # Environ 1500 mots, la limite de 'tiny' est 32k tokens, mais 2500 est un bon objectif pour un article détaillé.
-                          # Ajustez si le modèle coupe l'article trop tôt.
+        "max_tokens": 2500
     }
 
     print(f"\n🚀 Tentative de génération d'article avec le modèle '{MISTRAL_MODEL_NAME}'...")
@@ -100,12 +165,11 @@ def generate_article():
             MISTRAL_API_BASE_URL,
             headers=headers,
             json=payload,
-            timeout=180 # Augmente le timeout pour des articles plus longs
+            timeout=180
         )
         response.raise_for_status()
 
         print("Status code Mistral:", response.status_code)
-        # print("Response Mistral:", response.text) # Commenté pour éviter l'encombrement des logs
 
         data = response.json()
         
@@ -177,19 +241,20 @@ def get_publication_id():
 def publish_article(content):
     publication_id = get_publication_id()
     
-    # --- MODIFIÉ ICI : Extraction du titre du contenu généré ---
-    # Cherche la première ligne qui commence par '#' pour l'utiliser comme titre
     first_line_match = content.split('\n')[0].strip()
+    extracted_title = ""
     if first_line_match.startswith('# '):
-        title = first_line_match[2:].strip() # Supprime '# '
-        content = content[len(first_line_match):].strip() # Supprime le titre du contenu pour ne pas avoir de doublon
+        extracted_title = first_line_match[2:].strip()
+        content = content[len(first_line_match):].strip() # Supprime le titre du contenu
     else:
-        # Fallback si l'IA ne génère pas de titre Markdown, utilise le titre par défaut du bot
-        title = "Article du " + datetime.now().strftime("%d %B %Y - %H:%M")
+        extracted_title = "Article du " + datetime.now().strftime("%d %B %Y - %H:%M")
 
-    # --- MODIFIÉ ICI : Ajout de la signature si elle n'est pas déjà présente ---
+    # --- MODIFIÉ ICI : Appel de la nouvelle fonction pour obtenir l'URL de l'image ---
+    selected_cover_url = get_random_cover_image_url()
+
+    # Assurez-vous que la signature est présente
     if "Par Nathan Remacle." not in content:
-        content += "\n\nPar Nathan Remacle." # Ajoute la signature à la fin
+        content += "\n\nPar Nathan Remacle."
 
     mutation = """
     mutation PublishPost($input: PublishPostInput!) {
@@ -203,21 +268,33 @@ def publish_article(content):
       }
     }
     """
+    
     variables = {
         "input": {
-            "title": title, # Utilise le titre extrait ou généré par défaut
+            "title": extracted_title,
             "contentMarkdown": content,
             "publicationId": publication_id,
-            "tags": [], # Toujours sans tags pour l'instant pour la stabilité
+            "tags": [],
         }
     }
+    
+    # Ajouter l'URL de l'image de couverture si une a été sélectionnée
+    if selected_cover_url:
+        variables["input"]["coverImageOptions"] = {
+            "coverImageURL": selected_cover_url,
+            "isCoverImageAttributionRequired": False # Mettez True si vous ajoutez une attribution manuelle
+        }
+        print(f"DEBUG: Image de couverture Hashnode ajoutée aux variables: {selected_cover_url}")
+    else:
+        print("DEBUG: Pas d'image de couverture ajoutée (aucune URL configurée ou liste vide).")
+
 
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {HASHNODE_API_KEY}"
     }
 
-    print(f"\n✍️ Tentative de publication de l'article '{title}' sur Hashnode...")
+    print(f"\n✍️ Tentative de publication de l'article '{extracted_title}' sur Hashnode...")
     print(f"DEBUG: Payload JSON envoyé à Hashnode (sans le contenu détaillé): {json.dumps(variables, indent=2)}")
     print(f"DEBUG: Début du contenu Markdown envoyé: {content[:200]}...")
 
@@ -239,9 +316,9 @@ def publish_article(content):
            'post' in response_data['data']['publishPost'] and \
            'url' in response_data['data']['publishPost']['post']:
             post_url = response_data['data']['publishPost']['post']['url']
-            print(f"✅ Article publié avec succès : {title} à l'URL : {post_url}")
+            print(f"✅ Article publié avec succès : {extracted_title} à l'URL : {post_url}")
         else:
-            print(f"✅ Article publié avec succès (URL non récupérée) : {title}")
+            print(f"✅ Article publié avec succès (URL non récupérée) : {extracted_title}")
 
     except requests.exceptions.RequestException as e:
         print(f"❌ ERREUR HTTP lors de la publication de l'article sur Hashnode : {e}")
