@@ -60,8 +60,9 @@ Créez un dossier nommé `covers` à la racine de votre dépôt. Placez-y toutes
 
 Créez un fichier `requirements.txt` à la racine de votre dépôt avec le contenu suivant :
 
+```
 requests
-
+```
 
 ### Exécution (via GitHub Actions)
 
@@ -74,6 +75,7 @@ Vous pouvez également déclencher ces workflows manuellement via l'onglet "Acti
 
 ### Structure du Dépôt
 
+```
 .
 ├── .github/
 │   └── workflows/
@@ -87,7 +89,7 @@ Vous pouvez également déclencher ces workflows manuellement via l'onglet "Acti
 ├── english_hashnode_bot.py
 └── requirements.txt
 └── README.md
-
+```
 
 ### Contribuer
 
@@ -155,8 +157,9 @@ Create a folder named `covers` at the root of your repository. Place all images 
 
 Create a `requirements.txt` file at the root of your repository with the following content:
 
+```
 requests
-
+```
 
 ### Execution (via GitHub Actions)
 
@@ -169,6 +172,7 @@ You can also manually trigger these workflows via the "Actions" tab in your GitH
 
 ### Repository Structure
 
+```
 .
 ├── .github/
 │   └── workflows/
@@ -182,7 +186,7 @@ You can also manually trigger these workflows via the "Actions" tab in your GitH
 ├── english_hashnode_bot.py
 └── requirements.txt
 └── README.md
-
+```
 
 ### Contributing
 
@@ -191,3 +195,4 @@ Contributions are welcome! Feel free to open issues for suggestions or pull requ
 ### License
 
 This project is licensed under the MIT License. See the `LICENSE` file for more details.
+```
