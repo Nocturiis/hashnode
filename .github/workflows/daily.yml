@@ -2,15 +2,15 @@ name: Daily Hashnode Bot
 
 on:
   schedule:
-    - cron: '0 8 * * *'
-  workflow_dispatch:
+    - cron: '0 8 * * *' # Exécution quotidienne à 8h00 UTC
+  workflow_dispatch: # Permet de déclencher manuellement le workflow
 
 jobs:
   post:
     runs-on: ubuntu-latest
     env:
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-      HASHNODE_API_KEY:   ${{ secrets.HASHNODE_API_KEY }}
+      HASHNODE_API_KEY:    ${{ secrets.HASHNODE_API_KEY }}
 
     steps:
       - name: Checkout code
@@ -21,8 +21,14 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install dependencies # <<< MODIFIÉ ICI
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests # <<< AJOUTÉ CETTE LIGNE SPÉCIFIQUEMENT POUR 'requests'
+          # Si vous avez un fichier requirements.txt, assurez-vous que 'requests' y est listé.
+          # Si 'requests' n'est pas dans votre requirements.txt, la ligne ci-dessus garantit son installation.
+          # Si vous n'utilisez PAS de requirements.txt, supprimez la ligne ci-dessous.
+          pip install -r requirements.txt # Cette ligne installera les autres dépendances si elles sont dans requirements.txt
 
       - name: Run bot
         run: python hashnode_bot.py
