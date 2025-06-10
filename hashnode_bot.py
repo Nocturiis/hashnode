@@ -5,115 +5,121 @@ from datetime import datetime
 import json
 
 # --- Récupération et vérification des clés d'API ---
-HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+# HUGGINGFACE_API_KEY n'est plus nécessaire pour la génération de texte,
+# mais si vous la gardez pour d'autres usages, pas de souci.
+# Je la remplace par MISTRAL_API_KEY pour la génération.
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY") # Nouvelle clé pour Mistral AI
 HASHNODE_API_KEY = os.getenv("HASHNODE_API_KEY")
 
-if not HUGGINGFACE_API_KEY:
-    print("❌ ERREUR : HUGGINGFACE_API_KEY n'est pas défini. Assurez-vous que la variable d'environnement est correctement passée.")
+if not MISTRAL_API_KEY:
+    print("❌ ERREUR : MISTRAL_API_KEY n'est pas défini. Assurez-vous que la variable d'environnement est correctement passée et que vous avez créé une clé API Mistral AI.")
     sys.exit(1)
 
 if not HASHNODE_API_KEY:
     print("❌ ERREUR : HASHNODE_API_KEY n'est pas défini. Assurez-vous que la variable d'environnement est correctement passée.")
     sys.exit(1)
 
-# --- Définit le modèle HF à utiliser et l'URL de l'API ---
-# Changement du modèle vers un modèle de génération de texte plus petit et plus fiable.
-HF_MODEL_NAME = "distilbert/distilgpt2"
-HF_API_INFERENCE_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL_NAME}"
+# --- Définit le modèle Mistral AI à utiliser et l'URL de l'API ---
+MISTRAL_MODEL_NAME = "mistral-tiny" # Ou "mistral-small" si vous voulez un peu plus de qualité (et un peu plus de coûts)
+MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1/chat/completions" # Endpoint pour les chat completions de Mistral
 
+# --- Test d'authentification Mistral AI ---
+def test_mistral_auth():
+    headers = {
+        "Authorization": f"Bearer {MISTRAL_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": MISTRAL_MODEL_NAME,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Test de connexion."
+            }
+        ]
+    }
 
-# --- Test d'authentification Hugging Face ---
-def test_hf_auth():
-    headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    # Requête de test simple pour un modèle de génération de texte
-    payload = {"inputs": "Bonjour"}
-
-    print(f"🔎 Test d'authentification HF avec modèle '{HF_MODEL_NAME}' à l'URL: {HF_API_INFERENCE_URL}")
+    print(f"🔎 Test d'authentification Mistral AI avec modèle '{MISTRAL_MODEL_NAME}' à l'URL: {MISTRAL_API_BASE_URL}")
     try:
-        resp = requests.post(HF_API_INFERENCE_URL, headers=headers, json=payload, timeout=30) # Timeout plus court car plus rapide
-        print(f"Auth test HF status: {resp.status_code}")
-        print(f"Auth test HF response: {resp.text}")
+        resp = requests.post(MISTRAL_API_BASE_URL, headers=headers, json=payload, timeout=30)
+        print(f"Auth test Mistral status: {resp.status_code}")
+        print(f"Auth test Mistral response: {resp.text}")
 
-        # Les codes 200 (OK) ou 503 (Service Indisponible - chargement du modèle) sont acceptables
-        if resp.status_code == 200 or resp.status_code == 503:
-            print("✅ Authentification Hugging Face réussie et modèle accessible (ou en cours de chargement).")
+        if resp.status_code == 200:
+            print("✅ Authentification Mistral AI réussie et modèle accessible.")
             try:
                 response_data = resp.json()
-                if isinstance(response_data, list) and response_data and "generated_text" in response_data[0]:
-                    print("✅ Réponse du modèle au format attendu (contient 'generated_text').")
+                if "choices" in response_data and response_data["choices"]:
+                    print("✅ Réponse du modèle au format attendu (contient 'choices').")
                 else:
-                    print("⚠️ Réponse du modèle valide mais ne contient pas 'generated_text' dans le format attendu.")
+                    print("⚠️ Réponse du modèle valide mais ne contient pas 'choices' dans le format attendu.")
             except json.JSONDecodeError:
-                print("⚠️ Réponse du modèle non JSON valide. Cela pourrait être un problème de serveur.")
+                print("⚠️ Réponse du modèle non JSON valide. Cela pourrait être un problème de serveur Mistral AI.")
         elif resp.status_code == 401:
-            print("❌ Échec de l’authentification HF: 401 Unauthorized. Clé API incorrecte ou permissions insuffisantes.")
-            sys.exit(1)
-        elif resp.status_code == 404:
-            print(f"❌ Échec de l’authentification HF: 404 Not Found. Le modèle '{HF_MODEL_NAME}' n'est pas déployé publiquement ou l'URL est incorrecte.")
-            print("Vérifiez la disponibilité de ce modèle sur l'API d'inférence gratuite.")
+            print("❌ Échec de l’authentification Mistral AI: 401 Unauthorized. Clé API incorrecte ou permissions insuffisantes.")
             sys.exit(1)
         else:
-            print(f"❌ Échec de l’authentification HF. Statut inattendu: {resp.status_code}, Réponse: {resp.text}")
+            print(f"❌ Échec de l’authentification Mistral AI. Statut inattendu: {resp.status_code}, Réponse: {resp.text}")
             sys.exit(1)
     except requests.exceptions.RequestException as e:
-        print(f"❌ ERREUR réseau ou connexion lors du test d'authentification HF : {e}")
+        print(f"❌ ERREUR réseau ou connexion lors du test d'authentification Mistral AI : {e}")
         sys.exit(1)
 
-test_hf_auth()
+test_mistral_auth()
 
-# --- Génération de l'article via HuggingFace Inference API ---
+# --- Génération de l'article via Mistral AI API ---
 def generate_article():
     # Prompt pour l'article de blog
-    prompt = (
+    # Mistral-tiny est plus concis, 750 tokens est un bon objectif pour cet article
+    article_prompt = (
         "Rédige un article de blog (~750 mots) en français sur une tendance actuelle "
         "en intelligence artificielle, avec un titre accrocheur et une conclusion."
     )
     
     headers = {
-        "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
+        "Authorization": f"Bearer {MISTRAL_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {
-        "inputs": prompt,
-        "options": {"wait_for_model": True},
-        "parameters": {
-            "max_new_tokens": 750, # Gardons 750 tokens pour un bon équilibre qualité/fiabilité
-            "temperature": 0.7
-        }
+        "model": MISTRAL_MODEL_NAME,
+        "messages": [
+            {
+                "role": "user",
+                "content": article_prompt
+            }
+        ],
+        "temperature": 0.7,
+        "max_tokens": 750 # Mistral utilise max_tokens au lieu de max_new_tokens
     }
 
-    print(f"\n🚀 Tentative de génération d'article avec le modèle '{HF_MODEL_NAME}'...")
+    print(f"\n🚀 Tentative de génération d'article avec le modèle '{MISTRAL_MODEL_NAME}'...")
     try:
         response = requests.post(
-            HF_API_INFERENCE_URL,
+            MISTRAL_API_BASE_URL,
             headers=headers,
             json=payload,
-            timeout=300 # Retour à un timeout plus court, car ce modèle est plus rapide
+            timeout=120 # Timeout de 2 minutes, généralement suffisant pour Mistral Tiny
         )
         response.raise_for_status()
 
-        print("Status code HF:", response.status_code)
-        print("Response HF:", response.text)
+        print("Status code Mistral:", response.status_code)
+        print("Response Mistral:", response.text)
 
         data = response.json()
         
-        # Le format de réponse pour distilgpt2 est une liste de dictionnaires avec 'generated_text'
-        if not isinstance(data, list) or not data or "generated_text" not in data[0]:
-            raise ValueError(f"La réponse HF ne contient pas 'generated_text'. Réponse complète: {data}")
-        
-        generated_full_text = data[0]["generated_text"]
-        # Distilgpt2 renvoie le prompt inclus, nous devons le retirer
-        if generated_full_text.startswith(prompt):
-            article_content = generated_full_text[len(prompt):].strip()
+        # Extraction du texte généré selon le format de réponse de l'API chat completions (Mistral)
+        if 'choices' in data and data['choices'] and 'message' in data['choices'][0] and 'content' in data['choices'][0]['message']:
+            article_content = data['choices'][0]['message']['content'].strip()
+            print("DEBUG: Réponse traitée comme Chat Completions API de Mistral AI.")
         else:
-            article_content = generated_full_text # Au cas où, on prend tout
-            
+            raise ValueError(f"La réponse de Mistral AI ne contient pas le format de chat completions attendu. Réponse complète: {data}")
+        
         return article_content
     except requests.exceptions.RequestException as e:
-        print(f"❌ ERREUR HTTP lors de la génération de l'article : {e}")
+        print(f"❌ ERREUR HTTP lors de la génération de l'article avec Mistral AI : {e}")
         sys.exit(1)
     except ValueError as e:
-        print(f"❌ ERREUR de données dans la réponse HF : {e}")
+        print(f"❌ ERREUR de données dans la réponse Mistral AI : {e}")
         sys.exit(1)
 
 # --- Récupération de l'ID de la publication Hashnode ---
