@@ -1,4 +1,4 @@
-name: Daily Hashnode Post - EN
+name: Daily Hashnode Bot - EN
 
 on:
   workflow_dispatch: # Permet de déclencher manuellement le workflow
