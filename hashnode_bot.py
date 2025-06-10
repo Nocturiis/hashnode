@@ -186,8 +186,8 @@ def publish_article(content):
             "title": title,
             "contentMarkdown": content,
             "publicationId": publication_id,
-            "tags": [], # <<<< MODIFIÉ ICI : Tags retirés pour le diagnostic
-            "coverImageOptions": {"enabled": False},
+            "tags": [],
+            # "coverImageOptions": {"enabled": False}, # <<< COMMENTÉ/SUPPRIMÉ CETTE LIGNE
         }
     }
 
@@ -198,24 +198,34 @@ def publish_article(content):
 
     print(f"\n✍️ Tentative de publication de l'article '{title}' sur Hashnode...")
     print(f"DEBUG: Payload JSON envoyé à Hashnode (sans le contenu détaillé): {json.dumps(variables, indent=2)}")
-    # Pour ne pas polluer les logs avec l'article complet, on peut montrer une partie du contenu
-    print(f"DEBUG: Début du contenu Markdown envoyé: {content[:200]}...") # Affiche les 200 premiers caractères
+    print(f"DEBUG: Début du contenu Markdown envoyé: {content[:200]}...")
 
     try:
         resp = requests.post(HASHNODE_API_URL, json={"query": mutation, "variables": variables}, headers=headers)
-        resp.raise_for_status()
+        # NE PAS UTILISER resp.raise_for_status() ICI !
+        # Car Hashnode renvoie 200 OK même avec des erreurs GraphQL dans le payload.
+        
         print("Publish status:", resp.status_code)
         print("Publish response:", resp.text)
         
+        response_data = resp.json() # Parse la réponse JSON
+
+        # Vérifier si la réponse contient des erreurs GraphQL
+        if 'errors' in response_data and response_data['errors']:
+            print(f"❌ ERREUR GraphQL de Hashnode lors de la publication de l'article : {response_data['errors']}")
+            sys.exit(1) # Quitte le script si une erreur GraphQL est trouvée
+
         post_url = None
-        if 'data' in resp.json() and \
-           'publishPost' in resp.json()['data'] and \
-           'post' in resp.json()['data']['publishPost'] and \
-           'url' in resp.json()['data']['publishPost']['post']:
-            post_url = resp.json()['data']['publishPost']['post']['url']
+        if 'data' in response_data and \
+           'publishPost' in response_data['data'] and \
+           'post' in response_data['data']['publishPost'] and \
+           'url' in response_data['data']['publishPost']['post']:
+            post_url = response_data['data']['publishPost']['post']['url']
             print(f"✅ Article publié avec succès : {title} à l'URL : {post_url}")
         else:
             print(f"✅ Article publié avec succès (URL non récupérée) : {title}")
+            # Si pas d'erreur mais pas d'URL non plus, c'est peut-être un succès partiel ou un format inattendu
+            # On pourrait envisager de sys.exit(1) ici aussi si l'URL est absolument nécessaire pour le succès.
 
     except requests.exceptions.RequestException as e:
         print(f"❌ ERREUR HTTP lors de la publication de l'article sur Hashnode : {e}")
