@@ -17,7 +17,7 @@ if not HASHNODE_API_KEY:
     sys.exit(1)
 
 # --- Définit le modèle Mistral AI à utiliser et l'URL de l'API ---
-MISTRAL_MODEL_NAME = "mistral-tiny"
+MISTRAL_MODEL_NAME = "mistral-tiny" # Gardons tiny pour les tests, mais envisagez 'mistral-medium' ou 'mistral-large' pour la qualité
 MISTRAL_API_BASE_URL = "https://api.mistral.ai/v1/chat/completions"
 
 # --- Test d'authentification Mistral AI ---
@@ -40,7 +40,7 @@ def test_mistral_auth():
     try:
         resp = requests.post(MISTRAL_API_BASE_URL, headers=headers, json=payload, timeout=30)
         print(f"Auth test Mistral status: {resp.status_code}")
-        print(f"Auth test Mistral response: {resp.text}")
+        # print(f"Auth test Mistral response: {resp.text}") # Commenté pour éviter l'encombrement des logs
 
         if resp.status_code == 200:
             print("✅ Authentification Mistral AI réussie et modèle accessible.")
@@ -66,15 +66,23 @@ test_mistral_auth()
 
 # --- Génération de l'article via Mistral AI API ---
 def generate_article():
-    # Prompt simplifié pour le diagnostic
-    article_prompt = "Rédige un article de blog professionnel et détaillé d'au moins 1500 mots en français sur un sujet (d'actualité si possible) qui concerne l'informatique dans sa globalité. Signe par Nathan Remacle et optimise le SEO de l'article"
+    # --- MODIFIÉ ICI : Prompt amélioré et gestion du titre/signature ---
+    article_prompt = (
+        "Rédige un article de blog professionnel et détaillé d'au moins 1500 mots en français sur un sujet (d'actualité si possible) "
+        "qui concerne l'informatique dans sa globalité. "
+        "Le titre doit être inclus au début du contenu de l'article (premier niveau de titre, ex: # Titre de l'Article). "
+        "Ne commence pas l'article par 'Titre : ' ou 'Auteur : ' ou 'Date de publication : '. "
+        "L'article doit se terminer par la signature 'Par Nathan Remacle.'. "
+        "Optimise le contenu pour le SEO en incluant des mots-clés pertinents de manière naturelle. "
+        "Évite les formulations qui sonnent 'IA' et adopte un ton humain et engageant."
+    )
     
     headers = {
         "Authorization": f"Bearer {MISTRAL_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {
-        "model": MISTRAL_MODEL_NAME,
+        "model": MISTRAL_MODEL_NAME, # Considérez 'mistral-medium' ou 'mistral-large' pour de meilleurs résultats
         "messages": [
             {
                 "role": "user",
@@ -82,7 +90,8 @@ def generate_article():
             }
         ],
         "temperature": 0.7,
-        "max_tokens": 100000 # Réduit les tokens pour un article plus court
+        "max_tokens": 10000 # Environ 1500 mots, la limite de 'tiny' est 32k tokens, mais 2500 est un bon objectif pour un article détaillé.
+                          # Ajustez si le modèle coupe l'article trop tôt.
     }
 
     print(f"\n🚀 Tentative de génération d'article avec le modèle '{MISTRAL_MODEL_NAME}'...")
@@ -91,12 +100,12 @@ def generate_article():
             MISTRAL_API_BASE_URL,
             headers=headers,
             json=payload,
-            timeout=120
+            timeout=180 # Augmente le timeout pour des articles plus longs
         )
         response.raise_for_status()
 
         print("Status code Mistral:", response.status_code)
-        print("Response Mistral:", response.text)
+        # print("Response Mistral:", response.text) # Commenté pour éviter l'encombrement des logs
 
         data = response.json()
         
@@ -167,7 +176,20 @@ def get_publication_id():
 # --- Publication de l'article sur Hashnode ---
 def publish_article(content):
     publication_id = get_publication_id()
-    title = "Article du " + datetime.now().strftime("%d %B %Y - %H:%M")
+    
+    # --- MODIFIÉ ICI : Extraction du titre du contenu généré ---
+    # Cherche la première ligne qui commence par '#' pour l'utiliser comme titre
+    first_line_match = content.split('\n')[0].strip()
+    if first_line_match.startswith('# '):
+        title = first_line_match[2:].strip() # Supprime '# '
+        content = content[len(first_line_match):].strip() # Supprime le titre du contenu pour ne pas avoir de doublon
+    else:
+        # Fallback si l'IA ne génère pas de titre Markdown, utilise le titre par défaut du bot
+        title = "Article du " + datetime.now().strftime("%d %B %Y - %H:%M")
+
+    # --- MODIFIÉ ICI : Ajout de la signature si elle n'est pas déjà présente ---
+    if "Par Nathan Remacle." not in content:
+        content += "\n\nPar Nathan Remacle." # Ajoute la signature à la fin
 
     mutation = """
     mutation PublishPost($input: PublishPostInput!) {
@@ -183,11 +205,10 @@ def publish_article(content):
     """
     variables = {
         "input": {
-            "title": title,
+            "title": title, # Utilise le titre extrait ou généré par défaut
             "contentMarkdown": content,
             "publicationId": publication_id,
-            "tags": [],
-            # "coverImageOptions": {"enabled": False}, # <<< COMMENTÉ/SUPPRIMÉ CETTE LIGNE
+            "tags": [], # Toujours sans tags pour l'instant pour la stabilité
         }
     }
 
@@ -202,18 +223,15 @@ def publish_article(content):
 
     try:
         resp = requests.post(HASHNODE_API_URL, json={"query": mutation, "variables": variables}, headers=headers)
-        # NE PAS UTILISER resp.raise_for_status() ICI !
-        # Car Hashnode renvoie 200 OK même avec des erreurs GraphQL dans le payload.
         
         print("Publish status:", resp.status_code)
         print("Publish response:", resp.text)
         
-        response_data = resp.json() # Parse la réponse JSON
+        response_data = resp.json()
 
-        # Vérifier si la réponse contient des erreurs GraphQL
         if 'errors' in response_data and response_data['errors']:
             print(f"❌ ERREUR GraphQL de Hashnode lors de la publication de l'article : {response_data['errors']}")
-            sys.exit(1) # Quitte le script si une erreur GraphQL est trouvée
+            sys.exit(1)
 
         post_url = None
         if 'data' in response_data and \
@@ -224,8 +242,6 @@ def publish_article(content):
             print(f"✅ Article publié avec succès : {title} à l'URL : {post_url}")
         else:
             print(f"✅ Article publié avec succès (URL non récupérée) : {title}")
-            # Si pas d'erreur mais pas d'URL non plus, c'est peut-être un succès partiel ou un format inattendu
-            # On pourrait envisager de sys.exit(1) ici aussi si l'URL est absolument nécessaire pour le succès.
 
     except requests.exceptions.RequestException as e:
         print(f"❌ ERREUR HTTP lors de la publication de l'article sur Hashnode : {e}")
