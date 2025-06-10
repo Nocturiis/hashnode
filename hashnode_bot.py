@@ -181,10 +181,16 @@ def publish_article(content):
     publication_id = get_publication_id()
     title = "Article IA - " + datetime.now().strftime("%d %B %Y - %H:%M")
 
+    # MODIFIÉ ICI : Utiliser 'CreateDraftInput' et 'createDraft'
     mutation = """
-    mutation CreateStory($input: CreateStoryInput!) {
-      createStory(input: $input) {
-        post { title slug }
+    mutation CreateDraft($input: CreateDraftInput!) { # <<<< MODIFIÉ
+      createDraft(input: $input) { # <<<< MODIFIÉ
+        post {
+          id # Assurez-vous que c'est 'id' et non '_id' ici aussi
+          title
+          slug
+          url # Ajouter l'URL pour un message de succès plus informatif
+        }
       }
     }
     """
@@ -193,9 +199,14 @@ def publish_article(content):
             "title": title,
             "contentMarkdown": content,
             "publicationId": publication_id,
-            "isRepublished": False,
-            "tags": [{"_id": "64d3ac20b4110f0001e6aa5b", "name": "Artificial Intelligence"}],
+            "tags: [
+                {
+                    "_id": "64d3ac20b4110f0001e6aa5b", # Assurez-vous que cet ID de tag est toujours valide pour 'Artificial Intelligence'
+                    "name": "Artificial Intelligence"
+                }
+            ],
             "coverImageOptions": {"enabled": False},
+            "isPublished": True # <<<< Ajouté pour publier directement
         }
     }
 
@@ -210,22 +221,22 @@ def publish_article(content):
         resp.raise_for_status()
         print("Publish status:", resp.status_code)
         print("Publish response:", resp.text)
-        print(f"✅ Article publié avec succès : {title}")
+        
+        # Parse la réponse pour afficher l'URL du post si possible
+        post_url = None
+        if 'data' in resp.json() and \
+           'createDraft' in resp.json()['data'] and \
+           'post' in resp.json()['data']['createDraft'] and \
+           'url' in resp.json()['data']['createDraft']['post']:
+            post_url = resp.json()['data']['createDraft']['post']['url']
+            print(f"✅ Article publié avec succès : {title} à l'URL : {post_url}")
+        else:
+            print(f"✅ Article publié avec succès (URL non récupérée) : {title}")
+
     except requests.exceptions.RequestException as e:
         print(f"❌ ERREUR HTTP lors de la publication de l'article sur Hashnode : {e}")
         print(f"Réponse Hashnode en cas d'erreur : {resp.text if 'resp' in locals() else 'Pas de réponse.'}")
         sys.exit(1)
     except Exception as e:
         print(f"❌ Une erreur inattendue est survenue lors de la publication : {e}")
-        sys.exit(1)
-
-# --- Exécution principale ---
-if __name__ == "__main__":
-    print("Démarrage du bot Hashnode.")
-    try:
-        article = generate_article()
-        publish_article(article)
-        print("\n🎉 Bot Hashnode terminé avec succès !")
-    except Exception as e:
-        print(f"\nFATAL ERROR: Une erreur critique est survenue : {e}")
         sys.exit(1)
