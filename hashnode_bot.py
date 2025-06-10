@@ -199,9 +199,9 @@ def publish_article(content):
             "title": title,
             "contentMarkdown": content,
             "publicationId": publication_id,
-            "tags: [
+            "tags": [ # <<<< MODIFIÉ ICI : Correction de la syntaxe
                 {
-                    "_id": "64d3ac20b4110f0001e6aa5b", # Assurez-vous que cet ID de tag est toujours valide pour 'Artificial Intelligence'
+                    "_id": "64d3ac20b4110f0001e6aa5b",
                     "name": "Artificial Intelligence"
                 }
             ],
