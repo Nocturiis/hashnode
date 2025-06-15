@@ -131,11 +131,40 @@ def test_mistral_auth():
 
 test_mistral_auth()
 
+keywords = [
+    "cybersecurity", "cloud computing", "blockchain", "artificial intelligence", "machine learning",
+    "deep learning", "quantum computing", "edge computing", "devops", "gitops", "kubernetes", "docker",
+    "serverless", "microservices", "API management", "zero trust", "network security", "data privacy",
+    "GDPR compliance", "penetration testing", "ethical hacking", "firewall configuration", "VPN technology",
+    "multi-factor authentication", "natural language processing", "computer vision", "generative AI",
+    "neural networks", "digital twins", "augmented reality", "virtual reality", "mixed reality", "data science",
+    "big data analytics", "data lakes", "data warehouses", "ETL pipelines", "real-time analytics", "BI tools",
+    "fintech", "regtech", "healthtech", "edtech", "agritech", "legaltech", "low-code", "no-code platforms",
+    "mobile development", "responsive design", "progressive web apps", "cross-platform apps",
+    "web development", "frontend frameworks", "react.js", "vue.js", "angular", "backend systems", "REST APIs",
+    "GraphQL", "WebSockets", "event-driven architecture", "CI/CD pipelines", "infrastructure as code",
+    "cloud-native apps", "cloud security", "multi-cloud strategy", "hybrid cloud", "platform engineering",
+    "digital transformation", "IT strategy", "tech stack optimization", "legacy system modernization",
+    "distributed systems", "peer-to-peer networks", "open-source software", "SaaS", "PaaS", "IaaS",
+    "edge AI", "AI governance", "digital ethics", "algorithmic bias", "privacy by design",
+    "digital forensics", "incident response", "threat detection", "security operations center (SOC)",
+    "log management", "SIEM tools", "compliance automation", "container security", "code quality",
+    "static code analysis", "unit testing", "test-driven development", "agile methodology", "scrum",
+    "product management", "user experience (UX)", "human-computer interaction", "accessibility",
+    "tech leadership", "innovation management", "IT consulting", "technology trends", "smart cities",
+    "connected devices", "IoT platforms", "wearable tech", "5G networks", "digital identity", "biometrics",
+    "passwordless authentication", "data monetization", "tech regulation", "AI legislation", "sustainable IT",
+    "green computing", "digital sovereignty", "robotics", "autonomous systems", "intelligent automation",
+    "chatbots", "virtual assistants", "real-time collaboration tools"
+]
+
+chosen_keyword = random.choice(keywords)
+
 # --- Génération de l'article via Mistral AI API ---
 def generate_article():
     article_prompt = (
-        "Rédige un article de blog professionnel et détaillé d'au moins 1500 mots en français sur un sujet (d'actualité si possible) "
-        "qui concerne l'informatique dans sa globalité. "
+        "Rédige un article de blog professionnel et détaillé d'au moins 1500 mots en français sur un sujet d'actualité "
+        f"qui concerne {chosen_keyword}. "
         "Le titre doit être inclus au début du contenu de l'article (premier niveau de titre, ex: # Titre de l'Article). "
         "Ne commence pas l'article par 'Titre : ' ou 'Auteur : ' ou 'Date de publication : '. "
         "L'article doit se terminer par la signature 'Par Nathan Remacle.'. "
