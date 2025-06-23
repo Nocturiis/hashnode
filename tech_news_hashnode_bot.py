@@ -211,17 +211,18 @@ def generate_article():
         news_content = news_article.get('content', '')
         news_url = news_article.get('url', '')
 
-        # CHANGED: Prompt translated to English
+        # CHANGED: Updated prompt for more engaging title and refined instructions
         article_prompt = (
-            f"Write a professional and detailed blog post of at least 1500 words in English. "
-            f"The article should be based on the following tech news: \n\n"
+            f"Write a professional, detailed, and engaging blog post of at least 1500 words in English. "
+            f"The article must be based on the following tech news: \n\n"
             f"News Title: {news_title}\n"
             f"Description: {news_description}\n"
             f"Initial Content: {news_content}\n"
             f"Source Link: {news_url}\n\n"
             f"Develop this topic in depth, adding context, analysis, future implications, and examples if possible. "
-            f"The title of the article must be included at the beginning of the content (first-level heading, e.g., # Article Title). "
-            f"Do not start the article with 'Title: ', 'Author: ', or 'Publication Date: '. "
+            f"**The very first line of the output MUST be a compelling, SEO-friendly, and catchy title (H1 markdown format, e.g., # Your Awesome Title).** "
+            f"This title should be designed to grab attention and accurately reflect the article's core message regarding the impact of AI on jobs, especially from the perspective of a former Amazon developer if that's the news's angle. "
+            f"Do not include 'Title: ', 'Author: ', or 'Publication Date: ' at the beginning. "
             f"The article must end with the signature 'By Nathan Remacle.'. "
             f"Optimize the content for SEO by naturally including relevant keywords. "
             f"Avoid formulations that sound 'AI' and adopt a human and engaging tone."
@@ -258,13 +259,13 @@ def generate_article():
         ]
         chosen_keyword = random.choice(keywords)
         article_prompt = (
-            "Write a professional and detailed blog post of at least 1500 words in English on a current "
+            "Write a professional, detailed, and engaging blog post of at least 1500 words in English on a current "
             f"topic related to '{chosen_keyword}'. "
-            "The title must be included at the beginning of the article content (first-level heading, e.g., # Article Title). "
-            "Do not start the article with 'Title: ', 'Author: ', or 'Publication Date: '. "
-            "The article must end with the signature 'By Nathan Remacle.'. "
-            "Optimize the content for SEO by naturally including relevant keywords. "
-            "Avoid formulations that sound 'AI' and adopt a human and engaging tone."
+            f"**The very first line of the output MUST be a compelling, SEO-friendly, and catchy title (H1 markdown format, e.g., # Your Awesome Title).** "
+            f"Do not include 'Title: ', 'Author: ', or 'Publication Date: ' at the beginning. "
+            f"The article must end with the signature 'By Nathan Remacle.'. "
+            f"Optimize the content for SEO by naturally including relevant keywords. "
+            f"Avoid formulations that sound 'AI' and adopt a human and engaging tone."
         )
         print(f"PROMPT FOR ARTICLE BASED ON GENERIC KEYWORD: {chosen_keyword}")
 
