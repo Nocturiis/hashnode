@@ -221,7 +221,7 @@ def generate_article():
             f"Source Link: {news_url}\n\n"
             f"Develop this topic in depth, adding context, analysis, future implications, and examples if possible. "
             f"**The very first line of the output MUST be a compelling, SEO-friendly, and catchy title (H1 markdown format, e.g., # Your Awesome Title).** "
-            f"This title should be designed to grab attention and accurately reflect the article's core message regarding the impact of AI on jobs, especially from the perspective of a former Amazon developer if that's the news's angle. "
+            f"This title must immediately grab the reader’s attention, include strong and relevant SEO keywords, clearly reflect the core topic of the article, and be concise yet compelling. It should be written in a human, emotional, or curiosity-driven way that encourages clicks—even if it uses light, tasteful clickbait—while still staying true to the article’s content."
             f"Do not include 'Title: ', 'Author: ', or 'Publication Date: ' at the beginning. "
             f"The article must end with the signature 'By Nathan Remacle.'. "
             f"Optimize the content for SEO by naturally including relevant keywords. "
