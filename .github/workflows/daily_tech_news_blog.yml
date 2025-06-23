@@ -1,0 +1,32 @@
+name: Daily Tech News Blog Post
+
+on:
+  schedule:
+    # Exécute tous les jours à 02h00 UTC (ajustez l'heure selon votre préférence)
+    # Pour convertir en votre fuseau horaire, utilisez un outil comme https://crontab.guru/
+    - cron: '0 2 * * *' 
+  workflow_dispatch: # Permet de déclencher manuellement le workflow depuis GitHub
+
+jobs:
+  publish_tech_news_blog:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x' # Utilisez une version de Python stable, ex: '3.9', '3.10', '3.11'
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run Tech News Hashnode Bot
+      env:
+        MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+        HASHNODE_API_KEY: ${{ secrets.HASHNODE_API_KEY }}
+        NEWSAPI_API_KEY: ${{ secrets.NEWSAPI_API_KEY }} # Ajout de la clé API NewsAPI
+        # Les variables GITHUB_REPOSITORY et GITHUB_REF sont automatiquement injectées par GitHub Actions
+      run: python tech_news_hashnode_bot.py
